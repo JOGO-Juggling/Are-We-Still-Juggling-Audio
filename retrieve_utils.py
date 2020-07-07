@@ -6,13 +6,12 @@ from scipy.io import wavfile
 
 import cv2
 
-class FrameIterator: 
+class AudioReader: 
     def __init__(self, data_path):
         self.samplerate, self.data = wavfile.read(data_path)
-        self.length = self.data.shape[0] / self.samplerate
-        self.time = np.linspace(0., self.length, self.data.shape[0])
-        self.frame = round(self.samplerate / self.length)
-        self.cur_sample = 0
+        self.length = self.data.shape[0]
+        self.time = self.length / self.samplerate
+        self.frame = round(self.samplerate / self.time)
 
     def __iter__(self):
         # Create iterator
@@ -21,7 +20,7 @@ class FrameIterator:
 
     def __next__(self):
         # Loop over frames
-        if self.cur_sample < self.samplerate:
+        if self.cur_sample < self.length:
             result = self.data[self.cur_sample : self.cur_sample + self.frame]
             self.cur_sample += self.frame
             return result
