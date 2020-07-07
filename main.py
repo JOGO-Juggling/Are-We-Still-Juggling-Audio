@@ -24,11 +24,15 @@ def main():
         n = len(audio)
         audio = [int(x[0]) for x in audio]
         fourier = fftpack.fft(audio)
-        spectrum = np.abs(fourier[70:n//2 - 300])
+        # spectrum = np.abs(fourier[70:n//2 - 300])
+        spectrum = np.abs(fourier[:n//2])
+
+        bins = 25
+        bin_size = len(spectrum) // bins
+        binned = [np.mean(spectrum[i * bin_size:i * bin_size + bin_size]) for i in range(bins)]
 
         frame = frame[1]
-        # frame = draw_frame(frame, np.abs(fourier[:n//2]), frame_w, frame_h)
-        frame = draw_frame(frame, spectrum, frame_w, frame_h)
+        frame = draw_frame(frame, binned[3:], frame_w, frame_h)
         cv2.imshow('Juggling', frame)
 
         if cv2.waitKey(1) & 0xFF == ord('q'):

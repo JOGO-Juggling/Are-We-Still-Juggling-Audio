@@ -16,7 +16,7 @@ def bar_plot(frame, data, width, height, position):
     x_data = np.linspace(x0, x1 - bar_width, n_bars)
 
     for x, y in zip(x_data, data):
-        frame = cv2.rectangle(frame, (int(x), int(y0 - y)), (int(x) + bar_width, y0), (255, 0, 0))
+        frame = cv2.rectangle(frame, (int(x), int(y0 - y)), (int(x) + bar_width, y0), (80, 255, 0), 5)
     
     return frame
 
