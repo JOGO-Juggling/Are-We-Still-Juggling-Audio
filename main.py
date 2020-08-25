@@ -24,8 +24,8 @@ def main():
         n = len(audio)
         audio = [int(x[0]) for x in audio]
         fourier = fftpack.fft(audio)
-        # spectrum = np.abs(fourier[70:n//2 - 300])
-        spectrum = np.abs(fourier[:n//2])
+        spectrum = np.abs(fourier[70:n//2 - 300])
+        # spectrum = np.abs(fourier[:n//2])
 
         bins = 25
         bin_size = len(spectrum) // bins
