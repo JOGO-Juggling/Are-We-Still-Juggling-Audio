@@ -1,0 +1,7 @@
+
+#!/bin/bash
+for filepath in data/videos/*
+do
+	filename=${filepath##*/}
+	ffmpeg -i "$filepath" "data/audio/${filename%.*}.wav"
+done

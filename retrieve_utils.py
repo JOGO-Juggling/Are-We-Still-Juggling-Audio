@@ -1,3 +1,4 @@
+import json
 import scipy.io
 import numpy as np
 
@@ -7,11 +8,11 @@ from scipy.io import wavfile
 import cv2
 
 class AudioReader: 
-    def __init__(self, data_path):
+    def __init__(self, data_path, frame_size, frame_stride):
         self.samplerate, self.data = wavfile.read(data_path)
         self.length = self.data.shape[0]
-        self.time = self.length / self.samplerate
-        self.frame = round(self.samplerate / self.time)
+        self.frame_size = int((self.samplerate / 1000) * frame_size)
+        self.frame_stride = int((self.samplerate / 1000) * frame_stride)
 
     def __iter__(self):
         # Create iterator
@@ -21,8 +22,36 @@ class AudioReader:
     def __next__(self):
         # Loop over frames
         if self.cur_sample < self.length:
-            result = self.data[self.cur_sample : self.cur_sample + self.frame]
-            self.cur_sample += self.frame
+            result = self.data[self.cur_sample:self.cur_sample + self.frame_size]
+            self.cur_sample += self.frame_stride
+            return result
+        else:
+            raise StopIteration
+
+class BallReader:
+    def __init__(self, data_path, video_name):
+        self.data_path = data_path
+        self.video_name = video_name
+
+        with open(self.data_path) as f:
+            self.data = json.load(f)[self.video_name]
+        
+        self.max_frame = int(len(self.data) - 1)
+        
+    def __iter__(self):
+        self.cur_frame = 0
+        return self
+
+    def __next__(self):
+        if self.cur_frame < self.max_frame:
+            if str(self.cur_frame) in self.data:
+                if len(self.data[str(self.cur_frame)]) > 0:
+                    result = self.data[str(self.cur_frame)][0]
+                else:
+                    result = {}
+            else:
+                result = {}
+            self.cur_frame += 1
             return result
         else:
             raise StopIteration

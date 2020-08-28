@@ -1,6 +1,0 @@
-#!bin/bash
-for file in data/videos/*
-do
-    outfile="${file/videos/audio}"
-    ffmpeg -i "$file" "${outfile%.*}.wav"
-done
