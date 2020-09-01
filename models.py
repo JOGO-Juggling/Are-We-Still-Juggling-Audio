@@ -9,8 +9,7 @@ class LogisticRegressor(nn.Module):
         self.main = nn.Sequential(
             nn.Linear(in_dim, 20),
             nn.Linear(20, 20),
-            nn.Linear(20, 10),
-            nn.Linear(10, out_dim)
+            nn.Linear(20, out_dim)
         )
 
     def forward(self, x):

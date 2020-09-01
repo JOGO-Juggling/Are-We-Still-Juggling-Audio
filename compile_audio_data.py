@@ -14,8 +14,8 @@ N_FFT = 512
 N_FIL = 40
 N_CEP = 12
 
-F_SIZE = 30
-F_STRIDE = 10
+F_SIZE = 50
+F_STRIDE = 25
 
 def construct_slice(samples, samplerate, frame_size):
     # Applt hamming frame
@@ -54,9 +54,9 @@ def get_MFCCs(periodogram_slice):
     # Apply discrete cosine transform and keep coefficients 2-13
     return dct(periodogram_slice, type=2, axis=0, norm='ortho')[2:(N_CEP + 2)]
 
-def main(data_folder, videoname, start=0, stop=1):
-    video_path = data_folder + '/videos/' + videoname
-    audio_path = data_folder + '/audio/' + videoname.split('.')[0] + '.wav'
+def main(data_dir, videoname, start=1, stop=11):
+    video_path = data_dir + '/videos/' + videoname
+    audio_path = data_dir + '/audio/' + videoname.split('.')[0] + '.wav'
 
     videoreader = VideoReader(video_path)
     audioreader = AudioReader(audio_path, F_SIZE, F_STRIDE)
@@ -66,7 +66,7 @@ def main(data_folder, videoname, start=0, stop=1):
 
     # Get all detected bounces
     bounce_data = []
-    with open(data_folder + '/bounces.json') as file:
+    with open(data_dir + '/bounces.json') as file:
         json_data = json.load(file)
         if videoname not in json_data:
             print('Video not in bounces.json')
@@ -85,10 +85,9 @@ def main(data_folder, videoname, start=0, stop=1):
     prev_ste0, prev_ste1 = 0, 0
 
     for i, samples in enumerate(audioreader):
-        cur_ste = np.mean(np.abs(samples))
-
         if i * F_STRIDE > start * 1000:
             samples = [np.mean(x) for x in samples] # Covert to 1 channel
+            cur_ste = np.mean(np.abs(samples))
 
             mean_amplitude = np.mean(no_peak_amp)
             mean_condition = prev_ste1 > mean_amplitude - 0.05 * mean_amplitude
@@ -100,7 +99,7 @@ def main(data_folder, videoname, start=0, stop=1):
 
                 # Construct periodogram
                 periodogram_slice = construct_slice(samples, samplerate, F_SIZE)
-                periodogram.append(periodogram_slice.T)
+                periodogram.append(list(periodogram_slice.T))
 
                 # Get MFCCs
                 mfccs.append(list(get_MFCCs(periodogram_slice).T))
@@ -118,7 +117,9 @@ def main(data_folder, videoname, start=0, stop=1):
             if i * F_STRIDE > stop * 1000:
                 break
     
-    mfccs_copy, dataset = mfccs.copy(), { 'true': [], 'false': [] }
+    perio_copy, mfccs_copy = periodogram.copy(), mfccs.copy()
+    perio_dataset, mfcc_dataset = { 'true': [], 'false': [] }, { 'true': [], 'false': [] }
+
     for bounce in bounce_data:
         closest = min(epd_time, key=lambda x:abs(x - bounce))
         closest_ind = epd_time.index(closest)
@@ -127,21 +128,34 @@ def main(data_folder, videoname, start=0, stop=1):
             closest_ind += 1
         
         if closest_ind < len(epd_time):
+            perio = periodogram[closest_ind]
             mfcc = mfccs[closest_ind]
-            dataset['true'].append(mfcc)
+
+            perio_dataset['true'].append(perio)
+            mfcc_dataset['true'].append(mfcc)
+
+            if perio in perio_copy:
+                perio_copy.remove(perio)
             if mfcc in mfccs_copy:
                 mfccs_copy.remove(mfcc)
-    
-    for mfcc in mfccs_copy:
-        dataset['false'].append(mfcc)
-    
-    json_data = {}
-    with open('data/mfccs.json', 'r') as f:
-        json_data = json.load(f)
 
-    json_data[videoname] = dataset
+    for perio in perio_copy:
+        perio_dataset['false'].append(perio)
+    for mfcc in mfccs_copy:
+        mfcc_dataset['false'].append(mfcc)
+    
+    mfcc_json_data, perio_json_data = {}, {}
+    with open('data/perio.json', 'r') as f:
+        perio_json_data = json.load(f)    
+    with open('data/mfccs.json', 'r') as f:
+        mfcc_json_data = json.load(f)
+
+    perio_json_data[videoname] = perio_dataset
+    mfcc_json_data[videoname] = mfcc_dataset
+    with open('data/perio.json', 'w') as f:
+        json.dump(perio_json_data, f)
     with open('data/mfccs.json', 'w') as f:
-        json.dump(json_data, f)
+        json.dump(mfcc_json_data, f)
 
     # fig, axs = plt.subplots(3, 1)
     # ste_time, epd_time = np.array(ste_time) / 1000, np.array(epd_time) / 1000

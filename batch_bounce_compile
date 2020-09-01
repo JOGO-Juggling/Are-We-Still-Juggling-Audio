@@ -2,5 +2,5 @@
 for filepath in data/videos/*
 do
 	filename=${filepath##*/}
-	python3 compile_data.py --video "$filename"
+	python3 compile_bounce_data.py --video "$filename"
 done
