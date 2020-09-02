@@ -54,8 +54,8 @@ def get_MFCCs(periodogram_slice):
     # Apply discrete cosine transform and keep coefficients 2-13
     return dct(periodogram_slice, type=2, axis=0, norm='ortho')[2:(N_CEP + 2)]
 
-def main(data_folder, videoname, start=0, stop=1):
-    video_path = data_folder + '/videos/' + videoname
+def main(data_folder, videoname, start=5, stop=15):
+    video_path = data_folder + '/video/' + videoname
     audio_path = data_folder + '/audio/' + videoname.split('.')[0] + '.wav'
 
     videoreader = VideoReader(video_path)
@@ -88,7 +88,8 @@ def main(data_folder, videoname, start=0, stop=1):
         cur_ste = np.mean(np.abs(samples))
 
         if i * F_STRIDE > start * 1000:
-            samples = [np.mean(x) for x in samples] # Covert to 1 channel
+            if type(samples) is np.ndarray:
+                samples = samples.sum(axis=1) / 2 # Covert to 1 channel
 
             mean_amplitude = np.mean(no_peak_amp)
             mean_condition = prev_ste1 > mean_amplitude - 0.05 * mean_amplitude
@@ -101,7 +102,7 @@ def main(data_folder, videoname, start=0, stop=1):
                 # Construct periodogram
                 periodogram_slice = construct_slice(samples, samplerate, F_SIZE)
                 periodogram.append(periodogram_slice.T)
-
+                
                 # Get MFCCs
                 mfccs.append(list(get_MFCCs(periodogram_slice).T))
             else:
@@ -143,14 +144,14 @@ def main(data_folder, videoname, start=0, stop=1):
     with open('data/mfccs.json', 'w') as f:
         json.dump(json_data, f)
 
-    # fig, axs = plt.subplots(3, 1)
-    # ste_time, epd_time = np.array(ste_time) / 1000, np.array(epd_time) / 1000
+    fig, axs = plt.subplots(3, 1)
+    ste_time, epd_time = np.array(ste_time) / 1000, np.array(epd_time) / 1000
 
-    # # Show STE and detected energy peaks
+    # Show STE and detected energy peaks
     # axs[0].plot(ste_time, ste)
     # axs[0].scatter(epd_time, epd, color='r')
     # axs[0].hlines(np.mean(no_peak_amp), xmin=ste_time[0], xmax=ste_time[-1], color='m', linestyles='--')
-    # axs[0].vlines(bounce_data / 1000, ymin=[0] * len(bounce_data), ymax=[max(ste)] * len(bounce_data))
+    # # axs[0].vlines(bounce_data / 1000, ymin=[0] * len(bounce_data), ymax=[max(ste)] * len(bounce_data))
     # axs[0].margins(x=0, y=0.2)
     # axs[0].set_ylabel('Short Time Energy')
 
