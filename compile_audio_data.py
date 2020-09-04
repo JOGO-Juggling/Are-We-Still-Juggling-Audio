@@ -80,7 +80,7 @@ def main(data_dir, videoname, start=1, stop=11):
     ms_per_slice = (duration / len(spectogram)) * 1000
     start_index = (1000 * start) / ms_per_slice
 
-    n_range = [-2, 2]
+    n_range = [-5, 10]
     inds = []
 
     for bounce in bounce_data:

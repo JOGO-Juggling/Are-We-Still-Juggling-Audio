@@ -74,7 +74,6 @@ class BounceTinder:
         fig = plt.figure(figsize=(15, 15))
         fig.canvas.mpl_connect('key_press_event', self.key_press)
 
-
         plt.subplot(231)
         plt.imshow(self._frame_stack[0][1][...,::-1])
         plt.subplot(232)
@@ -120,7 +119,7 @@ def main(data_dir, videoname, start=1, stop=20):
             ste_time.append(i * F_STRIDE)
 
             mean_amplitude = np.mean(no_peak_amp)
-            mean_condition = prev_ste1 > mean_amplitude - 0.05 * mean_amplitude
+            mean_condition = prev_ste1 > mean_amplitude
 
             # Energy peak detected
             if prev_ste1 > prev_ste0 and prev_ste1 > cur_ste and mean_condition:
