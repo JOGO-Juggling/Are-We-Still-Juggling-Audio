@@ -3,32 +3,37 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 class LogisticRegressor(nn.Module):
-    def __init__(self, win_dim, in_dim, out_dim):
+    def __init__(self, in_dim, win_dim, out_dim):
         super(LogisticRegressor, self).__init__()
-        self.win_dim, self.in_dim = win_dim, in_dim
-
-        self.main = nn.Sequential(
-            nn.Linear(win_dim * in_dim, out_dim)
-        )
+        
+        self.l1 = nn.Linear(win_dim * in_dim, 60)
+        # self.l2 = nn.Linear(60, 60)
+        # self.l3 = nn.Linear(60, 60)
+        self.l4 = nn.Linear(60, out_dim)
 
     def forward(self, x):
-        return self.main(x)
+        y = x
+        y = self.l1(y)
+        # y = self.l2(y)
+        # y = self.l3(y)
+        y = self.l4(y)
+        return y
 
 class Convolutional(nn.Module):
-    def __init__(self, in_dim, out_dim):
+    def __init__(self, in_dim, w_dim, out_dim):
         super(Convolutional, self).__init__()
+        self._in_dim = in_dim
 
-        self.l1 = nn.Conv2d(4, 8, kernel_size=2, stride=1)
-        self.l2 = nn.Conv2d(4, 8, kernel_size=2, stride=1)
-        self.l3 = nn.Conv2d(8, 12, kernel_size=2, stride=1)
-        self.classify = nn.Linear(32, out_dim)
+        self.l1 = nn.Conv2d(1, 2, kernel_size=w_dim, stride=1)
+        self.l2 = nn.Linear(2 * (in_dim - 4), in_dim - 4)
+        self.l3 = nn.Linear(in_dim - 4, in_dim // 2)
+        self.l4 = nn.Linear(in_dim // 2, out_dim)
     
     def forward(self, x):
-        print(x.shape)
-        y = self.l1(x)
-        print(y.shape)
-        # y = self.l2(x)
-        # print(y.shape)
-        # y = self.l3(x)
-        y = y.view(-1, 32)
-        return self.classify(y)
+        y = x
+        y = self.l1(y)
+        y = y.view(-1, 2 * (self._in_dim - 4))
+        y = self.l2(y)
+        y = self.l3(y)
+        y = self.l4(y)
+        return y
