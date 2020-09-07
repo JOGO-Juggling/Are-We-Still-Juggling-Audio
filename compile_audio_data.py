@@ -72,15 +72,16 @@ def main(data_dir, videoname, start=1, stop=11):
     signal, samplerate = librosa.load(audio_path)
     spectogram = librosa.feature.melspectrogram(signal, samplerate)
     spectogram = librosa.power_to_db(spectogram, ref=np.max).T.tolist()
-    mfccs = librosa.feature.mfcc(signal, samplerate).T.tolist()
+    mfccs = librosa.feature.mfcc(signal, samplerate, n_fft=4096).T.tolist()
 
     false_energies = epd_time.copy()
-    s_data, m_data = { 'true': [], 'false': [] }, { 'true': [], 'false': [] }
+    m_data = { 'true': [], 'false': [] }
     
-    ms_per_slice = (duration / len(spectogram)) * 1000
+    ms_per_slice = (duration / len(mfccs)) * 1000
+    print(ms_per_slice)
     start_index = (1000 * start) / ms_per_slice
 
-    n_range = [-5, 10]
+    n_range = [-10, 10]
     inds = []
 
     for bounce in bounce_data:
@@ -90,10 +91,10 @@ def main(data_dir, videoname, start=1, stop=11):
         if index < len(mfccs):
             inds.append(index)
             i,j = index + n_range[0], index + n_range[1]
-            s, m = spectogram[i:j], mfccs[i:j]
+            m = mfccs[i:j]
+            s = spectogram[i:j]
 
-            s_data['true'].append(s)
-            m_data['true'].append(s)
+            m_data['true'].append(m)
 
             if closest_epd in false_energies:
                 false_energies.remove(closest_epd)
@@ -103,21 +104,16 @@ def main(data_dir, videoname, start=1, stop=11):
 
         if index < len(mfccs):
             i,j = index + n_range[0], index + n_range[1]
-            s, m = spectogram[i:j], mfccs[i:j]
-            
-            s_data['false'].append(s)
+            m = mfccs[i:j]
+            s = spectogram[i:j]
+
             m_data['false'].append(m)
     
-    mfcc_json_data, specto_json_data = {}, {}
-    with open('data/specto.json', 'r') as f:
-        specto_json_data = json.load(f)    
+    mfcc_json_data = {}
     with open('data/mfccs.json', 'r') as f:
         mfcc_json_data = json.load(f)
 
-    specto_json_data[videoname] = s_data
     mfcc_json_data[videoname] = m_data
-    with open('data/specto.json', 'w') as f:
-        json.dump(specto_json_data, f)
     with open('data/mfccs.json', 'w') as f:
         json.dump(mfcc_json_data, f)
 
