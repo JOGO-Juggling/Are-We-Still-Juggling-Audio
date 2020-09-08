@@ -11,6 +11,16 @@ import matplotlib.pyplot as plt
 from retrieve_utils import AudioReader, VideoReader
 from models import Convolutional
 
+N_FFT = 4096
+N_MFCC = 40
+
+F_RANGE = (2, 40)
+W_RANGE = (-3, 2)
+W_CENTER = 10
+
+n_features = abs(F_RANGE[1] - F_RANGE[0])
+win_dim = abs(W_RANGE[1] - W_RANGE[0])
+
 def get_energy_peaks(v_file, a_file, f_size=25, f_stride=10):
     '''Calculates the energy peaks for an audio file, and returns the timings
        (in ms) of the energy peaks detected. Returns a list of EP timings.'''
@@ -49,33 +59,37 @@ def get_energy_peaks(v_file, a_file, f_size=25, f_stride=10):
     return ste, epd
 
 
-def get_mfccs(a_file, ep_timings, n_range=[-2, 3]):
+def get_mfccs(a_file, ep_timings):
     '''Constructs the MFCC feature matrix for each energy peak in an audio file
        given the timings of the energy peaks. Returns a list of MFCC matrices'''
     duration = librosa.get_duration(filename=a_file)
     signal, samplerate = librosa.load(a_file)
-    mfccs = librosa.feature.mfcc(signal, samplerate).T
+    mfccs = librosa.feature.mfcc(signal, samplerate, n_mfcc=N_MFCC, n_fft=N_FFT).T
     ms_per_slice = (duration / len(mfccs)) * 1000
     epd_mfccs = []
+
+    w_range = (W_RANGE[0] + W_CENTER, W_CENTER + W_RANGE[1])
 
     # Iterate trough energy peaks, match 
     for ep in ep_timings:
         mfcc_index = int((ep / ms_per_slice))
 
         if mfcc_index < len(mfccs) - 1:
-            i,j = mfcc_index + n_range[0], mfcc_index + n_range[1]
-            matrix = mfccs[i:j,2:14]
-            epd_mfccs.append([np.abs(matrix)])
+            i,j = mfcc_index + w_range[0], mfcc_index + w_range[1]
+            matrix = mfccs[i:j,F_RANGE[0]:F_RANGE[1]]
+            epd_mfccs.append(np.abs([matrix]))
     return np.array(epd_mfccs), mfccs
 
 
-def display_plots(ste, false_epd, true_epd, mfccs):
+def display_plots(ste, true_epd, false_epd, mfccs):
     '''Displays the results of the extraction functions in a plot.'''
     fig, axs = plt.subplots(2, 1)
     ste_time = np.arange(len(ste)) * 10
 
     # Plot STE and detected energy peaks
-    axs[0].plot(ste_time, ste)
+    axs[0].plot(ste_time, ste, color='b')
+    axs[0].vlines(true_epd, [0] * len(true_epd), [max(ste)] * len(true_epd),
+               color='g', linestyles='--')
     axs[0].vlines(false_epd, [0] * len(false_epd), [max(ste)] * len(false_epd),
                color='r', linestyles='--')
     axs[1].imshow(np.rot90(mfccs[:,2:14]))
@@ -85,9 +99,7 @@ def display_plots(ste, false_epd, true_epd, mfccs):
 def render_frame(frame, bounce):
     '''Adds bounce text to frame if bounce is detected and returns frame.'''
     if bounce:
-        frame = cv2.putText(frame, 'BOUNCE', (20, 100),
-                            cv2.FONT_HERSHEY_PLAIN,
-                            5, (0, 0, 0))
+        frame = cv2.putText(frame, 'BOUNCE', (20, 100), cv2.FONT_HERSHEY_PLAIN, 5, (0, 0, 0))
     return frame
 
 
@@ -113,6 +125,14 @@ def run_result(v_file, predictions, ep_timings):
         if cv2.waitKey(int(ms_per_frame) * 2) & 0xFF == ord('q'):
             break
 
+
+def make_predictions(model, mfccs):
+    with torch.no_grad():
+        y_hat = model(mfccs.to(device)).cpu()
+    _, predictions = torch.max(y_hat.data, 1)
+    return predictions.tolist()
+
+
 def main(video_file, audio_file, model, device):
     # Extract energy peaks
     short_term_energy, energy_peaks = get_energy_peaks(video_file, audio_file)
@@ -126,15 +146,15 @@ def main(video_file, audio_file, model, device):
     model.to(device)
 
     # For each energy peak make prediction using MFCCs
-    with torch.no_grad():
-        y_hat = model(mfccs_batch.to(device)).cpu()
-    _, predictions = torch.max(y_hat.data, 1)
-
-    print(predictions)
+    print(mfccs_batch.shape)
+    predictions = make_predictions(model, mfccs_batch)
+    true_peaks = [x for x, y in zip(energy_peaks, predictions) if y == 1]
+    false_peaks = [x for x, y in zip(energy_peaks, predictions) if y == 0]
 
     # Display predictions
-    # display_plots(short_term_energy, energy_peaks, [], mfccs)
-    run_result(video_file, predictions.tolist(), energy_peaks)
+    display_plots(short_term_energy, true_peaks, false_peaks, mfccs)
+    run_result(video_file, predictions, energy_peaks)
+
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
@@ -147,7 +167,7 @@ if __name__ == '__main__':
     device = torch.device("cuda:0" if (torch.cuda.is_available()) else "cpu")
     print(f'DEVICE: {device}, VIDEO: {args.video}')
 
-    model = Convolutional(12, 5, 2)
+    model = Convolutional(n_features, win_dim, 2)
     model.load_state_dict(torch.load('data/models/convolutional.pkl'))
 
     main(args.video, args.audio, model, device)
