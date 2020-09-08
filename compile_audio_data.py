@@ -72,42 +72,45 @@ def main(data_dir, videoname, start=1, stop=11):
     signal, samplerate = librosa.load(audio_path)
     spectogram = librosa.feature.melspectrogram(signal, samplerate)
     spectogram = librosa.power_to_db(spectogram, ref=np.max).T.tolist()
-    mfccs = librosa.feature.mfcc(signal, samplerate, n_fft=4096).T.tolist()
+    mfccs = librosa.feature.mfcc(signal, samplerate, n_mfcc=40, hop_length=1024).T.tolist()
 
     false_energies = epd_time.copy()
-    m_data = { 'true': [], 'false': [] }
+    m_data = []
     
     ms_per_slice = (duration / len(mfccs)) * 1000
-    print(ms_per_slice)
     start_index = (1000 * start) / ms_per_slice
 
     n_range = [-10, 10]
-    inds = []
+
+    prev_bounce = 0
 
     for bounce in bounce_data:
         closest_epd = min(epd_time, key=lambda x:abs(x - bounce))
         index = int((closest_epd / ms_per_slice) + start_index)
         
         if index < len(mfccs):
-            inds.append(index)
             i,j = index + n_range[0], index + n_range[1]
             m = mfccs[i:j]
             s = spectogram[i:j]
 
-            m_data['true'].append(m)
+            m_data.append({ 'm': m, 't': closest_epd - prev_bounce, 's': 1 })
 
             if closest_epd in false_energies:
                 false_energies.remove(closest_epd)
+        prev_bounce = closest_epd
     
     for ms in false_energies:
-        index = int(ms / ms_per_slice + start_index)
+        b_data = [x for x in bounce_data if x < ms]
+        if len(b_data) > 0:
+            closest_bounce = min(b_data, key=lambda x:abs(x - ms))
+            index = int(ms / ms_per_slice + start_index)
 
-        if index < len(mfccs):
-            i,j = index + n_range[0], index + n_range[1]
-            m = mfccs[i:j]
-            s = spectogram[i:j]
+            if index < len(mfccs):
+                i,j = index + n_range[0], index + n_range[1]
+                m = mfccs[i:j]
+                s = spectogram[i:j]
 
-            m_data['false'].append(m)
+                m_data.append({ 'm': m, 't': ms - closest_bounce, 's': 0 })
     
     mfcc_json_data = {}
     with open('data/mfccs.json', 'r') as f:
@@ -116,35 +119,6 @@ def main(data_dir, videoname, start=1, stop=11):
     mfcc_json_data[videoname] = m_data
     with open('data/mfccs.json', 'w') as f:
         json.dump(mfcc_json_data, f)
-
-    # fig, axs = plt.subplots(3, 1)
-    # ste_time, epd_time = np.array(ste_time) / 1000, np.array(epd_time) / 1000
-
-    # # Show STE and detected energy peaks
-    # axs[0].plot(ste_time, ste)
-    # axs[0].scatter(epd_time, epd, color='r')
-    # axs[0].hlines(np.mean(no_peak_amp), xmin=ste_time[0], xmax=ste_time[-1], color='m', linestyles='--')
-    # # axs[0].vlines(bounce_data / 1000, ymin=[0] * len(bounce_data), ymax=[max(ste)] * len(bounce_data))
-    # axs[0].margins(x=0, y=0.2)
-    # axs[0].set_ylabel('Short Time Energy')
-
-    # # Prepare images for display
-    # max_frequency = samplerate // 20000
-    # spectogram = np.rot90(np.array(spectogram))
-    # mfccs = np.rot90(np.array(mfccs))
-
-    # # Show spectogram and peak lines
-    # axs[1].vlines(x=inds, ymin=[0] * len(inds), ymax=[100] * len(inds), color='g')
-    # axs[1].imshow(spectogram, cmap='jet', aspect="auto")
-    # axs[1].set_ylabel('Frequency (kHz)')
-
-    # # Show MFCCs and peak lines
-    # axs[2].vlines(x=inds, ymin=[0] * len(inds), ymax=[12] * len(inds), color='g')
-    # axs[2].imshow(mfccs[1:13], cmap='jet', aspect="auto")
-    # axs[2].set_ylabel('MFCC Values')
-    # axs[2].set_xlabel('Time (s)')
-
-    # plt.show()
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
