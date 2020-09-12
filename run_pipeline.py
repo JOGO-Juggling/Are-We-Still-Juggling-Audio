@@ -11,8 +11,9 @@ import matplotlib.pyplot as plt
 from retrieve_utils import AudioReader, VideoReader
 from models import Convolutional
 
-N_FFT = 4096
 N_MFCC = 40
+N_FFT = 4096
+HOP_LEN = 1024
 
 F_RANGE = (2, 40)
 W_RANGE = (-3, 2)
@@ -64,7 +65,7 @@ def get_mfccs(a_file, ep_timings):
        given the timings of the energy peaks. Returns a list of MFCC matrices'''
     duration = librosa.get_duration(filename=a_file)
     signal, samplerate = librosa.load(a_file)
-    mfccs = librosa.feature.mfcc(signal, samplerate, n_mfcc=N_MFCC, n_fft=N_FFT).T
+    mfccs = librosa.feature.mfcc(signal, samplerate, n_mfcc=N_MFCC, n_fft=N_FFT, hop_length=HOP_LEN).T
     ms_per_slice = (duration / len(mfccs)) * 1000
     epd_mfccs = []
 
@@ -92,7 +93,7 @@ def display_plots(ste, true_epd, false_epd, mfccs):
                color='g', linestyles='--')
     axs[0].vlines(false_epd, [0] * len(false_epd), [max(ste)] * len(false_epd),
                color='r', linestyles='--')
-    axs[1].imshow(np.rot90(mfccs[:,2:14]))
+    axs[1].imshow(np.rot90(mfccs[:,F_RANGE[0]:F_RANGE[1]]))
     plt.show()
 
 
