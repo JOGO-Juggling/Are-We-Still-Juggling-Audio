@@ -1,6 +1,0 @@
-#!/bin/bash
-for filepath in data/video/*
-do
-	filename=${filepath##*/}
-	python3 compile_audio_data.py --video "$filename"
-done
