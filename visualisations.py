@@ -91,7 +91,7 @@ def display_plots(a_file, ste, false_epd, true_epd, mfccs):
                color='r', linestyles='--')
     axs[1].vlines(true_epd, [0] * len(true_epd), [max(ste)] * len(true_epd),
                color='r', linestyles='--')
-    axs[2].imshow(np.rot90(mfccs[:,2:14]))
+    # axs[2].imshow(np.rot90(mfccs[:,2:14]))
     plt.show()
 
 
